@@ -4,6 +4,8 @@ labels:
   project: gallery
 include:
   - "*.py"
+exclude:
+  - ".venv/"
 python:
   packages:
     - scikit-learn
