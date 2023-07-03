@@ -1,6 +1,6 @@
 {
   "cluster_name": "default",
-  "name": "bento-deployment",
+  "name": "iris-frost",
   "description": "",
   "mode": "function",
   "targets": [
