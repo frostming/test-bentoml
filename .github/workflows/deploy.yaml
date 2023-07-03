@@ -1,0 +1,48 @@
+name: Deploy to Bento Cloud
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - v*
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          apt-get update && apt-get install jq
+          pip install -r requirements.txt
+
+      - name: Login to Bento Cloud
+        run: |
+          bentoml cloud login --api-token ${{ secrets.BENTOCLOUD_API_TOKEN }} --endpoint ${{ secrets.BENTOCLOUD_ENDPOINT }}
+
+      - name: Pull models
+        run: bentoml models pull
+
+      - name: Build and push
+        id: build
+        run: |
+          bento_tag=$(bentoml build -o tag)
+          echo "BENTO_TAG=$bento_tag" >> $GITHUB_OUTPUT
+          echo "BENTO_NAME=$(echo $bento_tag | cut -d: -f1)" >> $GITHUB_OUTPUT
+          echo "BENTO_VERSION=$(echo $bento_tag | cut -d: -f2)" >> $GITHUB_OUTPUT
+          bentoml push $bento_tag
+
+      - name: Deploy
+        run: |
+          jq '.targets[0].bento_repository = "${{ steps.build.outputs.BENTO_NAME }}" | .targets[0].bento = "${{ steps.build.outputs.BENTO_VERSION }}"' \
+            deployment.yaml > /tmp/deployment-updated.yaml
+          bentoml deployment update -f /tmp/deployment-updated.yaml
